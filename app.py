@@ -3,11 +3,16 @@ import pandas as pd
 import plotly.express as px
 import networkx as nx
 import matplotlib.pyplot as plt
-from pgmpy.models import DiscreteBayesianNetwork
 from pgmpy.estimators import MaximumLikelihoodEstimator
 from pgmpy.inference import VariableElimination
 import warnings
 warnings.filterwarnings("ignore")
+
+# Safe import to prevent version crash on other laptops
+try:
+    from pgmpy.models import DiscreteBayesianNetwork as BayesianNetwork
+except ImportError:
+    from pgmpy.models import BayesianNetwork
 
 st.set_page_config(page_title="AI Macro-Risk Dashboard", layout="wide")
 
@@ -19,8 +24,8 @@ def load_and_train_ai():
     for col in df.columns:
         df[col] = df[col].astype('category')
         
-    # Define Complex 5-Node Architecture (Unit 1)
-    model = DiscreteBayesianNetwork([
+    # Define Complex 5-Node Architecture
+    model = BayesianNetwork([
         ('Global_Event', 'Interest_Rates'),
         ('Inflation_Level', 'Interest_Rates'),
         ('Global_Event', 'Market_Volatility'),
@@ -29,7 +34,7 @@ def load_and_train_ai():
         ('Inflation_Level', 'Portfolio_Strategy')
     ])
     
-    # Parameter Estimation: Learning probabilities (Unit 3)
+    # Parameter Estimation: Learning probabilities
     model.fit(df, estimator=MaximumLikelihoodEstimator)
     infer = VariableElimination(model)
     return df, model, infer
@@ -58,6 +63,17 @@ with tab1:
         nx.draw(model, pos, with_labels=True, node_color="#34495e", edge_color="#7f8c8d", 
                 node_size=2000, font_size=8, font_weight="bold", font_color="white", arrows=False)
         st.pyplot(fig_net)
+
+    # --- NEW ADDITION: Displaying the CPTs ---
+    st.divider()
+    st.subheader("🧠 Learned Conditional Probability Tables (CPTs)")
+    st.write("These matrices prove the AI successfully performed Parameter Estimation (Unit 3) by calculating exact probabilities directly from the 5,000-row CSV dataset.")
+    
+    with st.expander("Click to view raw AI Math (CPT Matrices)"):
+        # This loops through every node and prints its learned mathematical table
+        for cpd in model.get_cpds():
+            st.markdown(f"**Node: {cpd.variable}**")
+            st.code(cpd, language="text")
 
 with tab2:
     st.header("2. Dynamic AI Strategy Simulator (Exact Inference)")
